@@ -335,6 +335,22 @@ impl App {
         if is_foreign_bot_command(text, self.shared.bot_username.as_deref()) {
             return Ok(());
         }
+        tracing::info!(
+            chat_id = message.chat.id,
+            thread_id = ?message.message_thread_id,
+            from_user_id = from.id,
+            text_len = text.len(),
+            "telegram message received"
+        );
+        if !telegram_thread_allowed(&self.shared.config, &message) {
+            tracing::info!(
+                chat_id = message.chat.id,
+                thread_id = ?message.message_thread_id,
+                from_user_id = from.id,
+                "telegram message ignored by thread filter"
+            );
+            return Ok(());
+        }
         if self.dispatch_command_text(&user, &message, text).await? {
             return Ok(());
         }
@@ -1619,6 +1635,28 @@ impl App {
             Self::HISTORY_PAGE_CACHE_MAX_ENTRIES,
         );
     }
+}
+
+fn telegram_thread_allowed(config: &Config, message: &Message) -> bool {
+    if message.chat.kind == "private" {
+        return true;
+    }
+
+    if let Some(thread_id) = message.message_thread_id {
+        if config.telegram.ignored_thread_ids.contains(&thread_id) {
+            return false;
+        }
+    } else if config.telegram.ignored_thread_ids.contains(&0) {
+        return false;
+    }
+
+    if config.telegram.allowed_thread_ids.is_empty() {
+        return true;
+    }
+
+    message
+        .message_thread_id
+        .is_some_and(|thread_id| config.telegram.allowed_thread_ids.contains(&thread_id))
 }
 
 fn latest_assistant_text_from_history(history: &[CodexHistoryEntry]) -> Option<&str> {

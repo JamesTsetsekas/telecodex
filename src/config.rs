@@ -39,6 +39,10 @@ pub struct TelegramConfig {
     pub stale_topic_days: Option<i64>,
     #[serde(default)]
     pub stale_topic_action: StaleTopicAction,
+    #[serde(default)]
+    pub allowed_thread_ids: Vec<i64>,
+    #[serde(default)]
+    pub ignored_thread_ids: Vec<i64>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, Default)]
